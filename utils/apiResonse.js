@@ -1,18 +1,20 @@
 const sendResponse = function (
   res,
-  status,
+  success,
   data,
   message,
   statusCode = 200,
-  apiVersion = null
+  meta = null
 ) {
-  let obj = {
-    status,
+  const obj = {
+    success,
     data,
     message,
     statusCode,
-    apiVersion: apiVersion || "No Version",
   };
+
+  if (meta && typeof meta === "object") Object.assign(obj, meta);
+
   return res.status(statusCode).json(obj);
 };
 

@@ -33,7 +33,12 @@ const findProject = async (projectId, userId) => {
 
 
 export const create = asyncHandler(async (req, res) => {
-  const { name, description, status } = req.body || {};
+  const body = req.body || {};
+  const { name, description, status } = body;
+
+  if (Object.keys(body).some((field) => !["name", "description", "status"].includes(field))) {
+    throw new ApiError(statusType.BAD_REQUEST, "Unsupported project fields");
+  }
 
   if (typeof name !== "string" || !name.trim() || name.trim().length > 150) {
     throw new ApiError(statusType.BAD_REQUEST, "Invalid project name");
@@ -92,9 +97,14 @@ export const getOne = asyncHandler(async (req, res) => {
 
 
 export const update = asyncHandler(async (req, res) => {
-  const { name, description, status } = req.body || {};
+  const body = req.body || {};
+  const { name, description, status } = body;
   const projectId = parseProjectId(req.params.id);
   const userId = req.user.id;
+
+  if (Object.keys(body).some((field) => !["name", "description", "status"].includes(field))) {
+    throw new ApiError(statusType.BAD_REQUEST, "Unsupported project fields");
+  }
 
   if (name !== undefined) {
     if (typeof name !== "string" || !name.trim() || name.trim().length > 150) {

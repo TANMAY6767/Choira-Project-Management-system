@@ -13,14 +13,22 @@ const createToken = (userId) =>
 });
 
 export const register = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body || {};
-  console.log(req.body);
+  const body = req.body || {};
+  const { name, email, password } = body;
 
-  if (!name?.trim() || !email?.trim() || !password) {
+  if (Object.keys(body).some((field) => !["name", "email", "password"].includes(field))) {
+    throw new ApiError(statusType.BAD_REQUEST, "Unsupported registration fields");
+  }
+
+  if (typeof name !== "string" || typeof email !== "string" || typeof password !== "string" || !name.trim() || !email.trim() || !password) {
     throw new ApiError(statusType.BAD_REQUEST, "All fields are required");
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (name.trim().length > 100 || email.trim().length > 255) {
+    throw new ApiError(statusType.BAD_REQUEST, "Name or email is too long");
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     throw new ApiError(statusType.BAD_REQUEST, "Invalid email");
   }
 
@@ -59,9 +67,14 @@ export const register = asyncHandler(async (req, res) => {
 });
 
 export const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body || {};
+  const body = req.body || {};
+  const { email, password } = body;
 
-  if (!email?.trim() || !password) {
+  if (Object.keys(body).some((field) => !["email", "password"].includes(field))) {
+    throw new ApiError(statusType.BAD_REQUEST, "Unsupported login fields");
+  }
+
+  if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) {
     throw new ApiError(statusType.BAD_REQUEST, "Email and password are required");
   }
 
@@ -101,59 +114,59 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body || {};
+  const body = req.body || {};
+  const { name, email, password } = body;
 
-  if (name !== undefined) {
-    if (typeof name !== "string" || !name.trim()) {
-      throw new ApiError(statusType.BAD_REQUEST, "Invalid name");
-    }
+  if (Object.keys(body).some((field) => !["name", "email", "password"].includes(field))) {
+    throw new ApiError(statusType.BAD_REQUEST, "Unsupported profile fields");
+  }
 
-    if (name.trim().length > 100) {
-      throw new ApiError(statusType.BAD_REQUEST, "Name is too long");
-    }
+  if (name === undefined && email === undefined && password === undefined) {
+    throw new ApiError(statusType.BAD_REQUEST, "Provide a field to update");
+  }
 
-    await getMysql().execute(
-      "UPDATE users SET name = ? WHERE id = ?",
-      [name.trim(), req.user.id]
-    );
+  if (password !== undefined && (typeof password !== "string" || password.length < 8)) {
+    throw new ApiError(statusType.BAD_REQUEST, "Password must be at least 8 characters");
+  }
+
+  if (name !== undefined && (typeof name !== "string" || !name.trim() || name.trim().length > 100)) {
+    throw new ApiError(statusType.BAD_REQUEST, "Invalid name");
   }
 
   if (email !== undefined) {
     if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       throw new ApiError(statusType.BAD_REQUEST, "Invalid email");
     }
-
-    try {
-      await getMysql().execute(
-        "UPDATE users SET email = ? WHERE id = ?",
-        [email.trim().toLowerCase(), req.user.id]
-      );
-    } catch (error) {
-      if (error.code === "ER_DUP_ENTRY") {
-        throw new ApiError(statusType.CONFLICT, "Email already exists");
-      }
-      throw error;
+    if (email.trim().length > 255) {
+      throw new ApiError(statusType.BAD_REQUEST, "Email is too long");
     }
   }
 
+  const fields = [];
+  const values = [];
+  if (name !== undefined) {
+    fields.push("name = ?");
+    values.push(name.trim());
+  }
+  if (email !== undefined) {
+    fields.push("email = ?");
+    values.push(email.trim().toLowerCase());
+  }
   if (password !== undefined) {
-    if (typeof password !== "string" || password.length < 8) {
-      throw new ApiError(
-        statusType.BAD_REQUEST,
-        "Password must be at least 8 characters"
-      );
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    await getMysql().execute(
-      "UPDATE users SET password_hash = ? WHERE id = ?",
-      [passwordHash, req.user.id]
-    );
+    fields.push("password_hash = ?");
+    values.push(await bcrypt.hash(password, 10));
   }
 
-  if (name === undefined && email === undefined && password === undefined) {
-    throw new ApiError(statusType.BAD_REQUEST, "Provide a field to update");
+  try {
+    await getMysql().execute(
+      `UPDATE users SET ${fields.join(", ")} WHERE id = ?`,
+      [...values, req.user.id]
+    );
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") {
+      throw new ApiError(statusType.CONFLICT, "Email already exists");
+    }
+    throw error;
   }
 
   const [rows] = await getMysql().execute(
