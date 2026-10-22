@@ -3,6 +3,7 @@ import express from "express";
 import { connectMongo } from "./db.js";
 import { connectMysql, initializeMysql } from "./config/mysql.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { ApiError } from "./utils/ApiError.js";
 
 dotenv.config();
 
@@ -14,6 +15,11 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "API is running" });
 });
+
+app.use((req, res, next) => {
+  next(new ApiError(404, "Route not found"));
+});
+
 app.use(errorHandler);
 
 const startServer = async () => {

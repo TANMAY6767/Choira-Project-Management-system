@@ -1,7 +1,7 @@
 import { ApiError } from "../utils/ApiError.js";
 
 export const errorHandler = (error, req, res, next) => {
-  // Convert controller, database, and validation errors into one response shape.
+  
   let statusCode = error.statusCode || error.status || 500;
   let message = statusCode >= 500 ? "Internal server error" : error.message || "Request failed";
   let errors = error.errors || [];
