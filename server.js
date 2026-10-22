@@ -1,12 +1,37 @@
-const express = require('express');
-const cookieParser = require('cookie-parser');
+import dotenv from "dotenv";
+import express from "express";
+import { connectMongo } from "./db.js";
+import { connectMysql, initializeMysql } from "./config/mysql.js";
+import { errorHandler } from "./middleware/errorHandler.js";
+
+dotenv.config();
 
 const app = express();
 
-app.use(express.urlencoded({extended:false}));
-app.use(cookieParser);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+app.get("/api/health", (req, res) => {
+  res.json({ success: true, message: "API is running" });
+});
+app.use(errorHandler);
 
-app.listen(8000,()=>{
-    console.log("server is running");
+const startServer = async () => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is required");
+  }
+
+  await connectMysql();
+  await initializeMysql();
+  await connectMongo();
+
+  const port = Number(process.env.PORT) || 8000;
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
+};
+
+startServer().catch((error) => {
+  console.error("Unable to start the server:", error.message);
+  process.exitCode = 1;
 });
