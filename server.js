@@ -6,6 +6,7 @@ import { connectMysql, initializeMysql } from "./config/mysql.js";
 import { ApiError } from "./utils/ApiError.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { projectRoutes } from "./routes/projectRoutes.js";
+import { taskRoutes } from "./routes/taskRoutes.js";
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.get("/api/health", (req, res) => {
 });
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
+app.use("/api/tasks", taskRoutes);
 
 
 app.use((req, res, next) => {
